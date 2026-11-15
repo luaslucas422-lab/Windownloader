@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>WinSetup</AssemblyName>
+    <RootNamespace>WinSetup</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <Authors>DarkerDawnFR</Authors>
+    <Company>DarkerDawnFR</Company>
+    <Product>Win Setup</Product>
+    <Description>Installer for WinDownloader.</Description>
+    <Copyright>© DarkerDawnFR</Copyright>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\logo.png" />
+  </ItemGroup>
+
+  <!-- The published WinDownloader app, zipped by the build workflow, travels inside the installer. -->
+  <ItemGroup Condition="Exists('Payload\app.zip')">
+    <EmbeddedResource Include="Payload\app.zip" LogicalName="WinSetup.Payload.app.zip" />
+  </ItemGroup>
+
+</Project>

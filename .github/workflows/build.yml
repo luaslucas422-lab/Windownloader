@@ -1,0 +1,81 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Publish WinDownloader (self-contained, single file)
+        run: >
+          dotnet publish src/WinDownloader/WinDownloader.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=none
+          -o out/app
+
+      - name: Pack app into the installer payload
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path src/WinSetup/Payload | Out-Null
+          Get-ChildItem out/app -Recurse | Where-Object { $_.Extension -ne ".pdb" } | Select-Object -First 50 | Format-Table Name, Length
+          Compress-Archive -Path out/app/* -DestinationPath src/WinSetup/Payload/app.zip -Force
+          Copy-Item out/app/WinDownloader.exe out/WinDownloader-portable.exe
+
+      - name: Publish Win Setup (installer with payload inside)
+        run: >
+          dotnet publish src/WinSetup/WinSetup.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=none
+          -o out/setup
+
+      - name: Show outputs
+        shell: pwsh
+        run: Get-ChildItem out -Recurse -File | Format-Table FullName, @{n="MB";e={[math]::Round($_.Length/1MB,1)}}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WinSetup
+          path: |
+            out/setup/WinSetup.exe
+            out/WinDownloader-portable.exe
+
+      - name: Create GitHub Release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: WinDownloader v1.0.${{ github.run_number }}
+          make_latest: true
+          body: |
+            ## WinDownloader v1.0.${{ github.run_number }}
+
+            **Download `WinSetup.exe`** below, run it, and follow Win Setup. It detects your Windows version, installs WinDownloader to Program Files and adds shortcuts.
+
+            `WinDownloader-portable.exe` is the app on its own (no installer) if you prefer that.
+
+            Both files are self-contained — nothing else to install. Windows SmartScreen may warn because the build is not code-signed; choose *More info → Run anyway*.
+          files: |
+            out/setup/WinSetup.exe
+            out/WinDownloader-portable.exe
